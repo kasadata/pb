@@ -1,1 +1,0 @@
-console.log('Missing app.js');
