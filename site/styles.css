@@ -248,13 +248,9 @@ body.focus .layout{
     padding:8px;
     height:100dvh;
   }
-
   .mobileOnly{display:inline-flex}
-
-  /* Keep chart full height */
   .chartPane{min-height: calc(100dvh - 56px - 16px);}
 
-  /* SidePane becomes a drawer */
   .sidePane{
     position:fixed;
     top:0; right:0;
@@ -267,7 +263,6 @@ body.focus .layout{
   }
   body.mobilePanelsOpen .sidePane{transform:translateX(0)}
 
-  /* Bottom bar becomes bottom sheet */
   .bottombar{
     position:fixed;
     left:0; right:0; bottom:0;
@@ -281,18 +276,14 @@ body.focus .layout{
   }
   body.mobileTimelineOpen .bottombar{transform:translateY(0)}
 
-  /* Hide bottom bar & sidepane from document flow on mobile */
   .sidePane, .bottombar{box-shadow: 0 10px 40px rgba(0,0,0,0.45);}
   body.mobilePanelsOpen .backdrop, body.mobileTimelineOpen .backdrop{display:block}
 
-  /* Slightly tighter topbar */
   .topbar{padding:8px 10px}
-  .status{display:none} /* keep topbar compact; chart remains the star */
+  .status{display:none}
 }
-
 @media (max-width: 420px){
   .btn{padding:8px 8px}
   .brand .subtitle{display:none}
 }
-
 body.focus .bottombar{display:none}

@@ -9,7 +9,7 @@
 (function () {
   "use strict";
 
-  const BUILD_ID = "20260118-1753";
+  const BUILD_ID = "20260118-1832";
 
   // ---------- DOM ----------
   const $ = (sel) => document.querySelector(sel);
@@ -233,18 +233,29 @@
   }
 
   function ticketsSold(jCash, dow, rng) {
-    // NOTE: The original α=10,000,000 makes low-jackpot draws sell hundreds of millions of tickets,
-    // which implies P(Jackpot hit) ~ 50–70% at $20M — not realistic. Calibrate the scale so that
-    // a ~$20M cash jackpot produces ~10–30M tickets per draw (order-of-magnitude realistic).
-    const alpha = 600_000;            // scale (tunable)
-    const SALES_CAP = 300_000_000;    // hard cap to avoid runaway at extreme jackpots
-
+    // Raw sales function (spec form):
+    // S_t = α × (J_cash_millions ^ β) × D_day × Noise
+    // Calibration wrapper:
+    // - scale down to realistic ticket volumes
+    // - cap at a plausible upper bound to avoid impossible per-draw sales
+    const alpha = 10_000_000; // raw α (spec)
     const jM = jCash / 1_000_000;
     const beta = betaFromJackpot(jCash);
     const noise = lognormalNoise(rng);
-    const s = alpha * Math.pow(jM, beta) * dayFactor(dow) * noise;
-    return clamp(Math.max(0, Math.round(s)), 0, SALES_CAP);
+    const raw = alpha * Math.pow(jM, beta) * dayFactor(dow) * noise;
+
+    // --- Calibration (default, not user-tunable) ---
+    // Chosen so that at $20M jackpots the model produces ~20–30M tickets per draw on average,
+    // and at extreme jackpots it saturates below a plausible ceiling.
+    const SCALE = 12.0;
+    const MAX_TICKETS = 120_000_000; // ceiling
+    const MIN_TICKETS = 1_000_000;   // avoid degenerate near-zero sales
+
+    const scaled = raw / SCALE;
+    const clipped = Math.min(MAX_TICKETS, Math.max(MIN_TICKETS, scaled));
+    return Math.max(0, Math.round(clipped));
   }
+
 
   function reserveDeductionRate(jCash) {
     const m = jCash / 1_000_000;
@@ -440,17 +451,10 @@
     let rollStreak = 0;
     const pHitFired = new Set();
 
-    function eventLevel(type) {
-      if (type === "JACKPOT_HIT" || type === "ELIMINATED") return 3;
-      if (type === "LONG_ROLL" || type === "PHIT_THRESHOLD" || type === "RANK_FLIP") return 2;
-      return 1;
-    }
-
     function pushEvent(idx, type, main, whyRational, whyNotes) {
       events.push({ idx, type, main, whyRational: whyRational || "", whyNotes: whyNotes || "" });
       const stamp = `${drawIdFromIndex(idx)} ${curDate.toISOString().slice(0, 10)}`;
-      const lvl = eventLevel(type);
-      narration.push(`[${stamp}] [LEVEL ${lvl}] ${main}`);
+      narration.push(`[${stamp}] ${main}`);
     }
 
     const cost = ticketCost(addonMode);
@@ -745,19 +749,6 @@
     els.buildOverlay.classList.toggle("hidden", !on);
   }
 
-  function showFatal(title, detail) {
-    const overlay = els.buildOverlay;
-    overlay.classList.remove("hidden");
-    const card = overlay.querySelector(".buildCard");
-    if (card) {
-      const t = card.querySelector(".buildTitle");
-      const s = card.querySelector(".buildSub");
-      if (t) t.textContent = title || "App error";
-      if (s) s.textContent = detail || "Something went wrong while initializing.";
-    }
-  }
-
-
   function resetView() {
     view.scaleX = 1;
     view.scaleY = 1;
@@ -896,7 +887,6 @@
   if (els.btnTimelinePanel) els.btnTimelinePanel.addEventListener("click", toggleTimelinePanel);
   if (els.backdrop) els.backdrop.addEventListener("click", closeMobilePanels);
 
-
     alert("Only one player can use fixed tickets. Extra fixed slots were switched to Quick Pick.");
   }
 
@@ -945,9 +935,6 @@
 
         resetView();
         renderAll();
-      } catch (err) {
-        console.error(err);
-        showFatal("App error: rebuild failed", String(err && err.message ? err.message : err));
       } finally {
         showBuilding(false);
       }
@@ -1010,8 +997,6 @@
     ps.forEach((p, i) => {
       const li = document.createElement("li");
       li.setAttribute("data-id", p.id);
-      const color = PLAYER_COLORS[p.id] || "#d6d9ff";
-      li.style.borderLeft = `6px solid ${color}`;
       li.innerHTML = `<div><span class="rankTag">#${i + 1}</span><span class="name">${p.id}</span> <span class="mini">(${STRAT_LABEL[p.strat]})</span></div>
                       <div class="money">${fmtMoney(p.bal)}</div>`;
       li.addEventListener("mouseenter", () => { view.hoverPlayer = p.id; renderChart(); });
@@ -1038,8 +1023,6 @@
       const status = p.active ? "Active" : "Eliminated";
       const card = document.createElement("div");
       card.className = "card";
-      const c = PLAYER_COLORS[p.id] || "#d6d9ff";
-      card.style.borderTop = `4px solid ${c}`;
       card.addEventListener("mouseenter", () => { view.hoverPlayer = p.id; renderChart(); });
       card.addEventListener("mouseleave", () => { view.hoverPlayer = null; renderChart(); });
 
@@ -1134,6 +1117,13 @@ let xMax = clamp(center + span / 2, 0, totalPts - 1);
 
 // 保证窗口宽度
 if (xMax - xMin < 6) xMax = clamp(xMin + 6, 0, totalPts - 1);
+
+    const zoomX = view.scaleX;
+    const span = (baseMax - baseMin) / zoomX;
+    let center = (baseMin + baseMax) / 2 - view.offX;
+    let xMin = clamp(center - span / 2, 0, totalPts - 1);
+    let xMax = clamp(center + span / 2, 0, totalPts - 1);
+    if (xMax - xMin < 5) xMax = xMin + 5;
 
     let yMin = Infinity, yMax = -Infinity;
     for (let i = Math.floor(xMin); i <= Math.ceil(xMax); i++) {
@@ -1318,14 +1308,11 @@ if (!anyActive) {
   playing = false;
   els.btnPlayPause.textContent = "▶";
   els.nLineMain.textContent = "All players are eliminated. Simulation stopped.";
-  closeMobilePanels();
 }
 
 if (currentIdx >= sim.meta.totalDraws - 1) {
   playing = false;
   els.btnPlayPause.textContent = "▶";
-  els.nLineMain.textContent = "Reached the end of the simulation. Export is ready.";
-  closeMobilePanels();
 }
       }
     }
@@ -1355,12 +1342,6 @@ if (currentIdx >= sim.meta.totalDraws - 1) {
     const s = sim.summary;
     const meta = sim.meta;
 
-    const pHits = sim.snapshots.map(x => x.pHit).filter(x => typeof x === "number");
-    pHits.sort((a,b)=>a-b);
-    const q = (p) => pHits.length ? pHits[Math.floor((pHits.length-1)*p)] : 0;
-    const pHitMean = pHits.length ? (pHits.reduce((a,b)=>a+b,0)/pHits.length) : 0;
-    const rankFlips = sim.events.filter(e => e.type === "RANK_FLIP").length;
-
     const lines = [];
     lines.push("# Lotto Logic — Simulation Summary");
     lines.push("");
@@ -1369,16 +1350,13 @@ if (currentIdx >= sim.meta.totalDraws - 1) {
     lines.push(`- Total draws: ${meta.totalDraws}`);
     lines.push(`- Addon: ${meta.addonMode.toUpperCase()}`);
     lines.push(`- Market efficiency: ${meta.eff.toFixed(4)} (used for market only)`);
-    lines.push(`- Ticket price: $2 (addons +$1)\n- Build: 20260118-1753`);
+    lines.push(`- Ticket price: $2 (addons +$1)`);
     lines.push("");
 
     lines.push("## Section 2 — Key Results");
     lines.push(`- Draws with market jackpot hit (≥1 market winner): ${s.drawsWithMarketJackpotHit}`);
     lines.push(`- Player jackpot hits (total winning tickets across players): ${s.jackpotHitsPlayers}`);
     lines.push(`- Longest no-jackpot streak (draws): ${s.longestNoJackpotDraws}`);
-    lines.push(`- Ranking lead changes: ${rankFlips}`);
-    lines.push(`- P(Hit) mean: ${(pHitMean*100).toFixed(2)}%`);
-    lines.push(`- P(Hit) p50/p90/p99: ${(q(0.50)*100).toFixed(2)}% / ${(q(0.90)*100).toFixed(2)}% / ${(q(0.99)*100).toFixed(2)}%`);
     lines.push("- Final ranking:");
     s.finalPlayers.forEach((p, i) => {
       lines.push(`  - #${i + 1} ${p.id} (${STRAT_LABEL[p.strat]}): balance=${fmtMoney(p.bal)}, spent=${fmtMoney(p.spent)}, return=${fmtMoney(p.won)}, jackpotHits=${p.jHits}, status=${p.active ? "Active" : "Eliminated"}`);
