@@ -227,3 +227,72 @@ body.focus .layout{
     "chart"
     "bottom";
 }
+
+
+.mobileOnly{display:none}
+
+.backdrop{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:40;
+}
+
+@media (max-width: 900px){
+  .layout{
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px 1fr;
+    grid-template-areas:
+      "top"
+      "chart";
+    gap:8px;
+    padding:8px;
+    height:100dvh;
+  }
+
+  .mobileOnly{display:inline-flex}
+
+  /* Keep chart full height */
+  .chartPane{min-height: calc(100dvh - 56px - 16px);}
+
+  /* SidePane becomes a drawer */
+  .sidePane{
+    position:fixed;
+    top:0; right:0;
+    height:100dvh;
+    width:min(92vw, 420px);
+    z-index:50;
+    transform:translateX(105%);
+    transition:transform 260ms ease;
+    border-radius:14px 0 0 14px;
+  }
+  body.mobilePanelsOpen .sidePane{transform:translateX(0)}
+
+  /* Bottom bar becomes bottom sheet */
+  .bottombar{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    z-index:50;
+    transform:translateY(105%);
+    transition:transform 260ms ease;
+    margin:0;
+    border-radius:14px 14px 0 0;
+    max-height:80dvh;
+    overflow:auto;
+  }
+  body.mobileTimelineOpen .bottombar{transform:translateY(0)}
+
+  /* Hide bottom bar & sidepane from document flow on mobile */
+  .sidePane, .bottombar{box-shadow: 0 10px 40px rgba(0,0,0,0.45);}
+  body.mobilePanelsOpen .backdrop, body.mobileTimelineOpen .backdrop{display:block}
+
+  /* Slightly tighter topbar */
+  .topbar{padding:8px 10px}
+  .status{display:none} /* keep topbar compact; chart remains the star */
+}
+
+@media (max-width: 420px){
+  .btn{padding:8px 8px}
+  .brand .subtitle{display:none}
+}
+
+body.focus .bottombar{display:none}

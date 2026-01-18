@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div id="backdrop" class="backdrop hidden" aria-hidden="true"></div>
   <div id="app" class="layout">
     <header class="topbar" id="topbar">
       <div class="brand">
@@ -27,7 +28,9 @@
         <button class="btn" id="btnJackpotMode">Cash</button>
         <button class="btn" id="btnFocus">Focus</button>
         <button class="btn" id="btnFullscreen">⛶</button>
-        <button class="btn" id="btnNewRun">New run</button>
+                <button class="btn mobileOnly" id="btnPanels">Panels</button>
+        <button class="btn mobileOnly" id="btnTimelinePanel">Timeline</button>
+<button class="btn" id="btnNewRun">New run</button>
       </div>
     </header>
 
@@ -187,6 +190,6 @@
     </footer>
   </div>
 
-  <script src="./app.js"></script>
+  <script src="./app.js?v=20260118-1753"></script>
 </body>
 </html>
