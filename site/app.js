@@ -1042,10 +1042,24 @@
 
     const playerIds = sim.snapshots[0].players.map((p) => p.id);
 
-    const totalPts = series.length;
-    const baseWindow = Math.min(200, totalPts);
-    const baseMin = Math.max(0, totalPts - baseWindow);
-    const baseMax = totalPts - 1;
+const totalPts = series.length;
+const baseWindow = Math.min(200, totalPts);
+
+// 当前时间轴对应到 chartPoints 的索引（每 10 期一个点）
+const ptIndex = clamp(Math.floor(currentIdx / 10), 0, totalPts - 1);
+
+// 以当前点为中心做窗口，支持缩放/平移
+const zoomX = view.scaleX;
+const span = Math.max(6, baseWindow / zoomX);
+
+// view.offX 作为“按点数平移”
+let center = ptIndex - view.offX;
+
+let xMin = clamp(center - span / 2, 0, totalPts - 1);
+let xMax = clamp(center + span / 2, 0, totalPts - 1);
+
+// 保证窗口宽度
+if (xMax - xMin < 6) xMax = clamp(xMin + 6, 0, totalPts - 1);
 
     const zoomX = view.scaleX;
     const span = (baseMax - baseMin) / zoomX;
@@ -1094,7 +1108,6 @@
       ctx.fillText(series[idx].idx.toString(), x, padT + ph + 10 * devicePixelRatio);
     }
 
-    const ptIndex = clamp(Math.floor(currentIdx / 10), 0, totalPts - 1);
     const leader = series[ptIndex].leader;
     const hover = view.hoverPlayer;
 
