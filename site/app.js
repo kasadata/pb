@@ -708,6 +708,14 @@
   let currentIdx = 0;
 
   let fixedTicketsLocked = null;
+   
+   const PLAYER_COLORS = {
+  A: "#4aa3ff",
+  B: "#a78bfa",
+  C: "#fbbf24",
+  D: "#34d399",
+  E: "#fb7185",
+};
 
   const view = {
     scaleX: 1,
@@ -1128,10 +1136,12 @@ if (xMax - xMin < 6) xMax = clamp(xMin + 6, 0, totalPts - 1);
       const isLeader = leader === playerId;
 
       const alpha = hover ? (isHover ? 0.95 : 0.20) : (isLeader ? 0.90 : baseAlpha);
-      ctx.strokeStyle = `rgba(214,217,255,${alpha})`;
-      ctx.setLineDash(dash.map(d => d * devicePixelRatio));
+const color = PLAYER_COLORS[playerId] || "#d6d9ff";
+ctx.globalAlpha = alpha;
+ctx.strokeStyle = color;      ctx.setLineDash(dash.map(d => d * devicePixelRatio));
       ctx.lineWidth = (isHover || isLeader) ? 3.2 * devicePixelRatio : 2.0 * devicePixelRatio;
       ctx.stroke();
+       ctx.globalAlpha = 1;
       ctx.setLineDash([]);
     }
 
@@ -1241,10 +1251,19 @@ if (xMax - xMin < 6) xMax = clamp(xMin + 6, 0, totalPts - 1);
         els.timeline.value = String(currentIdx);
         lastUi = ts;
         renderAll();
-        if (currentIdx >= sim.meta.totalDraws - 1) {
-          playing = false;
-          els.btnPlayPause.textContent = "▶";
-        }
+
+// 如果全体玩家都淘汰，自动停止播放
+const snap = sim.snapshots[currentIdx];
+const anyActive = snap.players.some(p => p.active);
+if (!anyActive) {
+  playing = false;
+  els.btnPlayPause.textContent = "▶";
+}
+
+if (currentIdx >= sim.meta.totalDraws - 1) {
+  playing = false;
+  els.btnPlayPause.textContent = "▶";
+}
       }
     }
     requestAnimationFrame(tick);
@@ -1319,7 +1338,15 @@ if (xMax - xMin < 6) xMax = clamp(xMin + 6, 0, totalPts - 1);
   // ---------- Bind UI ----------
   function bindUI() {
     els.btnPlayPause.addEventListener("click", () => {
-      playing = !playing;
+      if (!sim) return;
+const snap = sim.snapshots[currentIdx];
+if (!snap.players.some(p => p.active)) {
+  playing = false;
+  els.btnPlayPause.textContent = "▶";
+  alert("All players are eliminated. Rebuild or start a new run.");
+  return;
+}
+playing = !playing;
       els.btnPlayPause.textContent = playing ? "⏸" : "▶";
       lastUi = performance.now();
     });
