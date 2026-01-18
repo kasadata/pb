@@ -706,16 +706,15 @@
   let seed = (Math.floor(Math.random() * 1e9) >>> 0);
   let sim = null;
   let currentIdx = 0;
-
   let fixedTicketsLocked = null;
-   
-   const PLAYER_COLORS = {
-  A: "#4aa3ff",
-  B: "#a78bfa",
-  C: "#fbbf24",
-  D: "#34d399",
-  E: "#fb7185",
-};
+
+  const PLAYER_COLORS = {
+    A: "#4aa3ff",
+    B: "#a78bfa",
+    C: "#fbbf24",
+    D: "#34d399",
+    E: "#fb7185",
+  };
 
   const view = {
     scaleX: 1,
@@ -1051,30 +1050,23 @@
     const playerIds = sim.snapshots[0].players.map((p) => p.id);
 
 const totalPts = series.length;
-const baseWindow = Math.min(200, totalPts);
+    const baseWindow = Math.min(200, totalPts);
 
-// 当前时间轴对应到 chartPoints 的索引（每 10 期一个点）
-const ptIndex = clamp(Math.floor(currentIdx / 10), 0, totalPts - 1);
+    // Current timeline draw -> chartPoints index (1 point per 10 draws)
+    const ptIndex = clamp(Math.floor(currentIdx / 10), 0, totalPts - 1);
 
-// 以当前点为中心做窗口，支持缩放/平移
-const zoomX = view.scaleX;
-const span = Math.max(6, baseWindow / zoomX);
-
-// view.offX 作为“按点数平移”
-let center = ptIndex - view.offX;
-
-let xMin = clamp(center - span / 2, 0, totalPts - 1);
-let xMax = clamp(center + span / 2, 0, totalPts - 1);
-
-// 保证窗口宽度
-if (xMax - xMin < 6) xMax = clamp(xMin + 6, 0, totalPts - 1);
-
+    // Window follows the current point (no more "always show the last 200 points")
     const zoomX = view.scaleX;
-    const span = (baseMax - baseMin) / zoomX;
-    let center = (baseMin + baseMax) / 2 - view.offX;
-    let xMin = clamp(center - span / 2, 0, totalPts - 1);
-    let xMax = clamp(center + span / 2, 0, totalPts - 1);
-    if (xMax - xMin < 5) xMax = xMin + 5;
+    const spanPts = Math.max(6, baseWindow / zoomX);
+
+    // view.offX pans in "points"
+    const center = ptIndex - view.offX;
+
+    let xMin = clamp(center - spanPts / 2, 0, totalPts - 1);
+    let xMax = clamp(center + spanPts / 2, 0, totalPts - 1);
+
+    // Ensure non-zero span
+    if (xMax - xMin < 6) xMax = clamp(xMin + 6, 0, totalPts - 1);
 
     let yMin = Infinity, yMax = -Infinity;
     for (let i = Math.floor(xMin); i <= Math.ceil(xMax); i++) {
